@@ -1,0 +1,21 @@
+.layout {
+  display: grid;
+  gap: 20px;
+}
+
+.header,
+.board {
+  border: 1px solid rgba(30, 53, 76, 0.1);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 20px 40px rgba(44, 77, 107, 0.08);
+}
+
+.header {
+  padding: 24px 28px;
+}
+
+.board {
+  min-height: 420px;
+  padding: 20px;
+}
