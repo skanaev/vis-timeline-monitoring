@@ -1,11 +1,18 @@
-import { Button, TextArea, TextInput } from '@admiral-ds/react-ui';
+import {
+  Button,
+  Modal,
+  ModalButtonPanel,
+  ModalContent,
+  ModalTitle,
+  TextArea,
+  TextInput,
+} from '@admiral-ds/react-ui';
 import { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { findSelectedProcess, getProcessDetailsViewModel } from '../../entities/process/model/selectors';
 import { findSelectedStage, getStageDetailsViewModel } from '../../entities/stage/model/selectors';
+import type { UiStage } from '../../entities/stage/model/types';
 import { useUpdateProcessCommentMutation } from '../../features/update-process-comment/api';
 import { useUpdateProcessExecutionDateMutation } from '../../features/update-process-date/api';
-import type { UiStage } from '../../entities/stage/model/types';
 import { formatDateTimeInput, parseDateTimeInput } from '../../shared/lib/date/format';
 import type { SelectedItemState } from '../../shared/types/timeline';
 import styles from './DetailsModal.module.css';
@@ -21,6 +28,8 @@ interface DetailField {
   label: string;
   value: string;
 }
+
+const MODAL_TITLE_ID = 'details-modal-title';
 
 const DetailFields = ({ fields }: { fields: DetailField[] }): JSX.Element => {
   return (
@@ -43,6 +52,8 @@ export const DetailsModal = ({
 }: DetailsModalProps): JSX.Element | null => {
   const selectedProcess = findSelectedProcess(stages, selectedItem);
   const selectedStage = findSelectedStage(stages, selectedItem);
+  const processViewModel = selectedProcess ? getProcessDetailsViewModel(selectedProcess) : null;
+  const stageViewModel = selectedStage ? getStageDetailsViewModel(selectedStage) : null;
   const updateCommentMutation = useUpdateProcessCommentMutation(businessDate);
   const updateExecutionDateMutation = useUpdateProcessExecutionDateMutation(businessDate);
   const [commentDraft, setCommentDraft] = useState<string>('');
@@ -58,27 +69,6 @@ export const DetailsModal = ({
     setCommentDraft(selectedProcess.comment ?? '');
     setExecutionDateDraft(formatDateTimeInput(selectedProcess.newExecutionDate));
   }, [selectedProcess]);
-
-  useEffect(() => {
-    if (!selectedItem) {
-      return undefined;
-    }
-
-    const previousOverflow = document.body.style.overflow;
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    };
-
-    document.body.style.overflow = 'hidden';
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [onClose, selectedItem]);
 
   if (!selectedItem) {
     return null;
@@ -106,155 +96,181 @@ export const DetailsModal = ({
     });
   };
 
-  const renderContent = (): JSX.Element => {
-    if (selectedItem.entityType === 'process' && selectedProcess) {
-      const viewModel = getProcessDetailsViewModel(selectedProcess);
+  const modalTitle =
+    selectedItem.entityType === 'process' && processViewModel
+      ? processViewModel.name
+      : selectedItem.entityType === 'stage' && stageViewModel
+        ? stageViewModel.name
+        : 'Сущность больше не найдена';
 
-      return (
-        <>
-          <div className={styles.header}>
-            <div>
-              <h2 className={styles.title}>{viewModel.name}</h2>
-              <p className={styles.meta}>Процесс #{viewModel.id}</p>
+  const modalMeta =
+    selectedItem.entityType === 'process' && processViewModel
+      ? `Процесс #${processViewModel.id}`
+      : selectedItem.entityType === 'stage' && stageViewModel
+        ? `Этап #${stageViewModel.id}`
+        : null;
+
+  const renderProcessContent = (): JSX.Element | null => {
+    if (!processViewModel) {
+      return null;
+    }
+
+    return (
+      <>
+        {modalMeta ? <p className={styles.meta}>{modalMeta}</p> : null}
+        <DetailFields
+          fields={[
+            { label: 'Статус', value: processViewModel.statusLabel },
+            { label: 'Отклонение', value: processViewModel.delayLabel },
+            { label: 'Плановый диапазон', value: processViewModel.plannedRangeLabel },
+            { label: 'Фактический диапазон', value: processViewModel.actualRangeLabel },
+            { label: 'Нормативная длительность', value: processViewModel.regulationDurationLabel },
+            { label: 'Фактическая длительность', value: processViewModel.factDurationLabel },
+            { label: 'Задержка запуска', value: processViewModel.launchDelayLabel },
+            { label: 'Задержка завершения', value: processViewModel.completionDelayLabel },
+            { label: 'Комментарий', value: processViewModel.commentLabel },
+            { label: 'Новая дата исполнения', value: processViewModel.newExecutionDateLabel },
+            { label: 'Organisation type', value: processViewModel.organisationTypeLabel },
+            { label: 'System type', value: processViewModel.systemTypeLabel },
+            { label: 'Отправлено в СУТП', value: processViewModel.sentToSutpLabel },
+            { label: 'Branch ID', value: processViewModel.branchLabel },
+            { label: 'Unit ID', value: processViewModel.unitLabel },
+          ]}
+        />
+        <section className={styles.formSection}>
+          <h3 className={styles.sectionTitle}>Обновление данных процесса</h3>
+          <div className={styles.formGrid}>
+            <div className={styles.field}>
+              <span className={styles.fieldLabel}>Комментарий</span>
+              <TextArea
+                rows={4}
+                value={commentDraft}
+                onChange={(event) => setCommentDraft(event.target.value)}
+              />
+            </div>
+            <div className={styles.actions}>
+              <Button
+                appearance="secondary"
+                loading={updateCommentMutation.isLoading}
+                onClick={() => {
+                  void handleCommentSave();
+                }}
+              >
+                Сохранить комментарий
+              </Button>
+              <p className={styles.hint}>
+                {updateCommentMutation.isError
+                  ? updateCommentMutation.error.message
+                  : updateCommentMutation.isSuccess
+                    ? 'Комментарий сохранён, данные обновятся после refetch.'
+                    : 'Модалка остаётся открытой после сохранения.'}
+              </p>
+            </div>
+            <div className={styles.field}>
+              <span className={styles.fieldLabel}>Новая дата исполнения</span>
+              <TextInput
+                type="datetime-local"
+                value={executionDateDraft}
+                onChange={(event) => setExecutionDateDraft(event.target.value)}
+              />
+            </div>
+            <div className={styles.actions}>
+              <Button
+                appearance="secondary"
+                loading={updateExecutionDateMutation.isLoading}
+                onClick={() => {
+                  void handleExecutionDateSave();
+                }}
+              >
+                Сохранить новую дату
+              </Button>
+              <p className={styles.hint}>
+                {updateExecutionDateMutation.isError
+                  ? updateExecutionDateMutation.error.message
+                  : updateExecutionDateMutation.isSuccess
+                    ? 'Новая дата сохранена, таймлайн инвалидирован.'
+                    : 'Поле можно очистить и сохранить пустое значение.'}
+              </p>
             </div>
           </div>
-          <DetailFields
-            fields={[
-              { label: 'Статус', value: viewModel.statusLabel },
-              { label: 'Отклонение', value: viewModel.delayLabel },
-              { label: 'Плановый диапазон', value: viewModel.plannedRangeLabel },
-              { label: 'Фактический диапазон', value: viewModel.actualRangeLabel },
-              { label: 'Нормативная длительность', value: viewModel.regulationDurationLabel },
-              { label: 'Фактическая длительность', value: viewModel.factDurationLabel },
-              { label: 'Задержка запуска', value: viewModel.launchDelayLabel },
-              { label: 'Задержка завершения', value: viewModel.completionDelayLabel },
-              { label: 'Комментарий', value: viewModel.commentLabel },
-              { label: 'Новая дата исполнения', value: viewModel.newExecutionDateLabel },
-              { label: 'Organisation type', value: viewModel.organisationTypeLabel },
-              { label: 'System type', value: viewModel.systemTypeLabel },
-              { label: 'Отправлено в СУТП', value: viewModel.sentToSutpLabel },
-              { label: 'Branch ID', value: viewModel.branchLabel },
-              { label: 'Unit ID', value: viewModel.unitLabel },
-            ]}
-          />
-          <section className={styles.formSection}>
-            <h3>Обновление данных процесса</h3>
-            <div className={styles.formGrid}>
-              <div className={styles.field}>
-                <span className={styles.fieldLabel}>Комментарий</span>
-                <TextArea
-                  rows={4}
-                  value={commentDraft}
-                  onChange={(event) => setCommentDraft(event.target.value)}
-                />
-              </div>
-              <div className={styles.actions}>
-                <Button
-                  appearance="secondary"
-                  loading={updateCommentMutation.isLoading}
-                  onClick={() => {
-                    void handleCommentSave();
-                  }}
-                >
-                  Сохранить комментарий
-                </Button>
-                <p className={styles.hint}>
-                  {updateCommentMutation.isError
-                    ? updateCommentMutation.error.message
-                    : updateCommentMutation.isSuccess
-                      ? 'Комментарий сохранён, данные обновятся после refetch.'
-                      : 'Модалка остаётся открытой после сохранения.'}
-                </p>
-              </div>
-              <div className={styles.field}>
-                <span className={styles.fieldLabel}>Новая дата исполнения</span>
-                <TextInput
-                  type="datetime-local"
-                  value={executionDateDraft}
-                  onChange={(event) => setExecutionDateDraft(event.target.value)}
-                />
-              </div>
-              <div className={styles.actions}>
-                <Button
-                  appearance="secondary"
-                  loading={updateExecutionDateMutation.isLoading}
-                  onClick={() => {
-                    void handleExecutionDateSave();
-                  }}
-                >
-                  Сохранить новую дату
-                </Button>
-                <p className={styles.hint}>
-                  {updateExecutionDateMutation.isError
-                    ? updateExecutionDateMutation.error.message
-                    : updateExecutionDateMutation.isSuccess
-                      ? 'Новая дата сохранена, таймлайн инвалидирован.'
-                      : 'Поле можно очистить и сохранить пустое значение.'}
-                </p>
-              </div>
-            </div>
-          </section>
-        </>
+        </section>
+      </>
+    );
+  };
+
+  const renderStageContent = (): JSX.Element | null => {
+    if (!stageViewModel) {
+      return null;
+    }
+
+    return (
+      <>
+        {modalMeta ? <p className={styles.meta}>{modalMeta}</p> : null}
+        <DetailFields
+          fields={[
+            { label: 'Плановый диапазон', value: stageViewModel.plannedRangeLabel },
+            { label: 'Фактический диапазон', value: stageViewModel.actualRangeLabel },
+            { label: 'Прогресс', value: stageViewModel.progressLabel },
+            { label: 'Отклонение', value: stageViewModel.delayLabel },
+            { label: 'Количество процессов', value: stageViewModel.processCountLabel },
+          ]}
+        />
+        <ol className={styles.processList}>
+          {stageViewModel.processes.map((process) => (
+            <li key={process.id}>
+              {process.name} · {process.statusLabel} · {process.delayLabel}
+            </li>
+          ))}
+        </ol>
+      </>
+    );
+  };
+
+  const renderContent = (): JSX.Element => {
+    if (selectedItem.entityType === 'process') {
+      return (
+        renderProcessContent() ?? (
+          <p className={styles.meta}>
+            Данные обновились, но выбранный этап или процесс отсутствует в новом ответе.
+          </p>
+        )
       );
     }
 
-    if (selectedItem.entityType === 'stage' && selectedStage) {
-      const viewModel = getStageDetailsViewModel(selectedStage);
-
+    if (selectedItem.entityType === 'stage') {
       return (
-        <>
-          <div className={styles.header}>
-            <div>
-              <h2 className={styles.title}>{viewModel.name}</h2>
-              <p className={styles.meta}>Этап #{viewModel.id}</p>
-            </div>
-          </div>
-          <DetailFields
-            fields={[
-              { label: 'Плановый диапазон', value: viewModel.plannedRangeLabel },
-              { label: 'Фактический диапазон', value: viewModel.actualRangeLabel },
-              { label: 'Прогресс', value: viewModel.progressLabel },
-              { label: 'Отклонение', value: viewModel.delayLabel },
-              { label: 'Количество процессов', value: viewModel.processCountLabel },
-            ]}
-          />
-          <ol className={styles.processList}>
-            {viewModel.processes.map((process) => (
-              <li key={process.id}>
-                {process.name} · {process.statusLabel} · {process.delayLabel}
-              </li>
-            ))}
-          </ol>
-        </>
+        renderStageContent() ?? (
+          <p className={styles.meta}>
+            Данные обновились, но выбранный этап или процесс отсутствует в новом ответе.
+          </p>
+        )
       );
     }
 
     return (
-      <div className={styles.header}>
-        <div>
-          <h2 className={styles.title}>Сущность больше не найдена</h2>
-          <p className={styles.meta}>
-            Данные обновились, но выбранный этап или процесс отсутствует в новом ответе.
-          </p>
-        </div>
-      </div>
+      <p className={styles.meta}>
+        Данные обновились, но выбранный этап или процесс отсутствует в новом ответе.
+      </p>
     );
   };
 
-  return createPortal(
-    <div className={styles.overlay} onClick={onClose}>
-      <section
-        className={styles.modal}
-        role="dialog"
-        aria-modal="true"
-        onClick={(event) => event.stopPropagation()}
-      >
+  return (
+    <Modal
+      aria-labelledby={MODAL_TITLE_ID}
+      closeOnEscapeKeyDown
+      closeOnOutsideClick
+      displayCloseIcon
+      dimension="l"
+      onClose={onClose}
+      style={{ width: 'min(860px, calc(100vw - 48px))', maxHeight: 'calc(100vh - 48px)' }}
+    >
+      <ModalTitle id={MODAL_TITLE_ID}>{modalTitle}</ModalTitle>
+      <ModalContent>
         <div className={styles.content}>{renderContent()}</div>
-        <div className={styles.footer}>
-          <Button onClick={onClose}>Закрыть</Button>
-        </div>
-      </section>
-    </div>,
-    document.body,
+      </ModalContent>
+      <ModalButtonPanel>
+        <Button onClick={onClose}>Закрыть</Button>
+      </ModalButtonPanel>
+    </Modal>
   );
 };

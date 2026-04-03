@@ -217,21 +217,20 @@ export const TimelineItemTooltip = ({
         boxShadow: 'none',
         padding: 0,
         borderRadius: 0,
-        maxWidth: 'min(360px, calc(100vw - 24px))',
+        maxWidth: 'min(420px, calc(100vw - 24px))',
       }}
       renderContent={() => (
         <div className={styles.tooltipCard}>
           <div className={styles.tooltipHeader}>
-            <div className={styles.tooltipHeadingRow}>
+            <div className={styles.tooltipTitle}>{cardModel.title}</div>
+            <div className={styles.tooltipMetaRow}>
               <span className={getKindBadgeClassName(cardModel.entityType)}>
                 {cardModel.entityLabel}
               </span>
-              <span className={styles.tooltipHeadingSeparator} aria-hidden="true" />
-              <div className={styles.tooltipTitle}>{cardModel.title}</div>
-            </div>
-            <div className={getStatusBadgeClassName(cardModel.statusTone)}>
-              <span className={getStatusDotClassName(cardModel.statusTone)} />
-              <span className={styles.tooltipStatusText}>{cardModel.statusLabel}</span>
+              <div className={getStatusBadgeClassName(cardModel.statusTone)}>
+                <span className={getStatusDotClassName(cardModel.statusTone)} />
+                <span className={styles.tooltipStatusText}>{cardModel.statusLabel}</span>
+              </div>
             </div>
           </div>
           <div className={styles.tooltipFields}>

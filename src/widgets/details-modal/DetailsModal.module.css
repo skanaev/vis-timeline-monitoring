@@ -1,45 +1,10 @@
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: rgba(15, 23, 31, 0.42);
-}
-
-.modal {
-  width: min(860px, 100%);
-  max-height: calc(100vh - 48px);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border-radius: 24px;
-  background: #ffffff;
-  box-shadow: 0 28px 60px rgba(9, 22, 35, 0.24);
-}
-
 .content {
-  overflow: auto;
-  padding: 24px 24px 0;
-}
-
-.header {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: flex-start;
-  margin-bottom: 20px;
-}
-
-.title {
-  margin: 0;
-  color: #12344d;
-  font-size: 1.6rem;
-  line-height: 1.2;
+  display: grid;
+  gap: 20px;
 }
 
 .meta {
+  margin: 0;
   color: #607488;
 }
 
@@ -68,14 +33,23 @@
 }
 
 .processList {
-  margin: 20px 0 0;
+  display: grid;
+  gap: 8px;
+  margin: 0;
   padding-left: 18px;
 }
 
 .formSection {
-  margin-top: 24px;
+  margin-top: 4px;
   padding-top: 20px;
   border-top: 1px solid rgba(30, 53, 76, 0.08);
+}
+
+.sectionTitle {
+  margin: 0 0 14px;
+  color: #12344d;
+  font-size: 1.05rem;
+  line-height: 1.3;
 }
 
 .formGrid {
@@ -96,25 +70,7 @@
   font-size: 0.9rem;
 }
 
-.footer {
-  display: flex;
-  justify-content: flex-end;
-  padding: 20px 24px 24px;
-}
-
 @media (max-width: 768px) {
-  .overlay {
-    padding: 12px;
-  }
-
-  .content {
-    padding: 18px 18px 0;
-  }
-
-  .footer {
-    padding: 18px;
-  }
-
   .grid {
     grid-template-columns: 1fr;
   }
