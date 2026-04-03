@@ -1,7 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig({
+const githubPagesBasePath = '/vis-timeline-monitoring/';
+
+export default defineConfig(({ command }) => ({
+  base: command === 'build' ? githubPagesBasePath : '/',
   plugins: [react()],
   server: {
     port: 5173,
@@ -12,4 +15,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));
